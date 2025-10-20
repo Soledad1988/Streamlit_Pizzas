@@ -1,8 +1,9 @@
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
+import datetime
 
-# 🩷 Configuración de la página (DEBE IR PRIMERO)
+# 🩷 Configuración de la página
 st.set_page_config(
     page_title="Call center",
     page_icon="📞",
@@ -20,6 +21,7 @@ df = pd.read_excel("Data/01 Call-Center-Dataset.xlsx")
 df["Speed of answer in seconds"] = df["Speed of answer in seconds"].fillna(0)
 df["AvgTalkDuration"] = df["AvgTalkDuration"].fillna(0)
 df["Satisfaction rating"] = df["Satisfaction rating"].fillna(0)
+
 
 # ------------------ Métricas ------------------
 total_llamadas = df["Call Id"].count()
