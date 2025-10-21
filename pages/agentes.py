@@ -2,9 +2,10 @@ import pandas as pd
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 import matplotlib.dates as mdates
 
-# 🩷 Configuración de la página
+# ------------------ Configuración de la página ------------------
 st.set_page_config(
     page_title="Call center",
     page_icon="📞",
@@ -12,8 +13,29 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ------------------ Paleta minimalista ------------------
+PALETTE = {
+    "bg": "#FFFFFF",
+    "text": "#2B2D42",      # dark slate
+    "muted": "#7D8A99",    # gray
+    "accent": "#D6457B",   # soft muted pink accent
+    "card_bg": "#F8F9FB"   # very light gray card background
+}
+
+plt.rcParams.update({
+    "figure.facecolor": PALETTE["bg"],
+    "axes.facecolor": PALETTE["bg"],
+    "axes.edgecolor": PALETTE["muted"],
+    "axes.titleweight": "bold",
+    "axes.titlesize": 12,
+    "axes.labelcolor": PALETTE["text"],
+    "xtick.color": PALETTE["muted"],
+    "ytick.color": PALETTE["muted"],
+    "font.size": 10,
+})
+
 # ------------------ Título ------------------
-st.title("📈 Call center")
+st.title("👩‍💻 Agentes")
 
 # ------------------ Dataset ------------------
 df = pd.read_excel("Data/01 Call-Center-Dataset.xlsx")
@@ -22,6 +44,47 @@ df = pd.read_excel("Data/01 Call-Center-Dataset.xlsx")
 df["Speed of answer in seconds"] = df["Speed of answer in seconds"].fillna(0)
 df["AvgTalkDuration"] = df["AvgTalkDuration"].fillna(0)
 df["Satisfaction rating"] = df["Satisfaction rating"].fillna(0)
+
+# normalizar fechas
+df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+
+# ------------------ Métricas ------------------
+total_llamadas = int(df["Call Id"].count())
+Q_agentes = int(df["Agent"].nunique())
+resueltas = int((df["Resolved"] == "Y").sum())
+pct_resueltas = round((resueltas / total_llamadas) * 100, 2) if total_llamadas else 0
+R_porSegundo_resueltas = round(df.loc[df["Resolved"] == "Y", "Speed of answer in seconds"].mean(), 2) if resueltas else 0
+satisfaccion = round(df["Satisfaction rating"].mean(), 2) if not df["Satisfaction rating"].isna().all() else 0
+
+# ------------------ Tarjetas personalizadas ------------------
+kcol1, kcol2, kcol3, kcol4, kcol5 = st.columns(5)
+
+card_style = """
+<div style="
+    background-color:#F8F9FB;
+    padding:15px;
+    border-radius:15px;
+    text-align:center;
+    box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
+    border:2px solid #E5E7EB;
+    height:150px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+">
+    <h3 style="color:#2B2D42; font-size:1.3rem; margin-bottom:8px; font-weight:600;">{}</h3>
+    <h2 style="color:#D6457B; font-size:2rem; font-weight:700; margin:0;">{}</h2>
+</div>
+"""
+
+with kcol1:
+    st.markdown(card_style.format("👩‍💻 Agentes", f"{Q_agentes}"), unsafe_allow_html=True)
+with kcol3:
+    st.markdown(card_style.format("✅ % Resueltas", f"{pct_resueltas}%"), unsafe_allow_html=True)
+with kcol5:
+    st.markdown(card_style.format("⭐ Satisfacción", f"{satisfaccion}"), unsafe_allow_html=True)
+
+st.markdown("---")
 
 # Normalizar columnas clave
 df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
@@ -40,60 +103,110 @@ agent_tbl['No_Resueltas'] = agent_tbl['Atendidas'] - agent_tbl['Resueltas']
 
 # Gráfico 1: Llamadas atendidas vs resueltas por agente (barras agrupadas)
 agent_tbl_sorted = agent_tbl.sort_values('Total_Llamadas', ascending=False)
-x = range(len(agent_tbl_sorted))
+x = np.arange(len(agent_tbl_sorted))
 width = 0.35
+
 fig, ax = plt.subplots(figsize=(10, 5))
-ax.bar([i - width/2 for i in x], agent_tbl_sorted['Atendidas'], width=width, label='Atendidas')
-ax.bar([i + width/2 for i in x], agent_tbl_sorted['Resueltas'], width=width, label='Resueltas')
+
+# Barras
+bars1 = ax.bar(x - width/2, agent_tbl_sorted['Atendidas'], width=width, label='Atendidas', color=PALETTE["accent"])
+bars2 = ax.bar(x + width/2, agent_tbl_sorted['Resueltas'], width=width, label='Resueltas', color=PALETTE["text"])
+
+# Etiquetas de valores sobre las barras
+for bar in bars1:
+    ax.text(bar.get_x() + bar.get_width()/2, bar.get_height(), int(bar.get_height()), 
+            ha='center', va='bottom', fontsize=9, color=PALETTE["text"])
+for bar in bars2:
+    ax.text(bar.get_x() + bar.get_width()/2, bar.get_height(), int(bar.get_height()), 
+            ha='center', va='bottom', fontsize=9, color=PALETTE["text"])
+
+# Eliminar fondo, bordes y líneas de grilla
+ax.set_facecolor(PALETTE["bg"])
+for spine in ax.spines.values():
+    spine.set_visible(False)
+ax.grid(False)
+
+# Eje X
 ax.set_xticks(x)
-ax.set_xticklabels(agent_tbl_sorted['Agent'], rotation=45, ha='right')
-ax.set_ylabel('Cantidad')
-ax.set_title('Atendidas vs Resueltas por Agente')
-ax.legend()
-ax.grid(axis='y', linestyle='--', alpha=0.4)
+ax.set_xticklabels(agent_tbl_sorted['Agent'], rotation=45, ha='right', color=PALETTE["text"])
+
+# Quitar etiqueta del eje Y
+ax.set_ylabel("")
+
+# Título
+ax.set_title('Atendidas vs Resueltas por Agente', color=PALETTE["text"], pad=10)
+
+# Leyenda centrada
+ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, frameon=False)
+
 plt.tight_layout()
 st.pyplot(fig)
 
-c1, c2 = st.columns([60, 40])
+st.markdown("---")
 
+c1, c2 = st.columns([40, 60])
+
+# ================== 📊 TABLA SIN ÍNDICE ==================
 with c1:
-    # Tabla: Agentes - Total llamadas - resueltas - no resueltas
     agent_tbl = df.groupby('Agent').agg(
-    Total_Llamadas = ('Call Id', 'count'),
-    Atendidas = ('Answered', lambda x: (x == 'Y').sum()),
-    Resueltas = ('Resolved', lambda x: (x == 'Y').sum())
+        Total_Llamadas=('Call Id', 'count'),
+        Atendidas=('Answered', lambda x: (x == 'Y').sum()),
+        Resueltas=('Resolved', lambda x: (x == 'Y').sum())
     ).reset_index()
     agent_tbl['No_Resueltas'] = agent_tbl['Atendidas'] - agent_tbl['Resueltas']
-    st.dataframe(agent_tbl)
 
+    # Mostrar tabla sin índice
+    st.dataframe(
+        agent_tbl.style.set_properties(
+            **{
+                'background-color': PALETTE["card_bg"],
+                'color': PALETTE["text"],
+                'border-color': PALETTE["muted"]
+            }
+        ),
+        use_container_width=True,
+        hide_index=True
+    )
+
+# ================== 📈 GRÁFICO DE TENDENCIA (Más alto) ==================
 with c2:
-    # Asegurar que 'Date' sea tipo datetime
     df['Date'] = pd.to_datetime(df['Date'])
-
-    # Agrupar llamadas resueltas por fecha
     resolved_ts = df[df['Resolved'] == 'Y'].groupby('Date').size().sort_index()
-
-    # Convertir índice a DatetimeIndex (necesario para resample)
     resolved_ts.index = pd.to_datetime(resolved_ts.index)
 
-    # Reagrupar por mes
     resolved_monthly = resolved_ts.resample('MS').sum()
 
-    # Línea de tendencia (regresión lineal)
+    # Regresión lineal (tendencia)
     x = mdates.date2num(resolved_monthly.index.to_pydatetime())
     y = resolved_monthly.values
     coef = np.polyfit(x, y, 1)
     trend = np.polyval(coef, x)
 
-    # Crear figura y graficar
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(resolved_monthly.index, resolved_monthly.values, marker='o', label='Resueltas')
-    ax.plot(resolved_monthly.index, trend, color='orange', label='Tendencia')
-    ax.set_title('Tendencia llamadas resueltas')
-    ax.set_xlabel('Fecha')
-    ax.set_ylabel('Cantidad')
-    ax.legend()
-    plt.tight_layout()
+    # --- Gráfico más alto (figsize aumentado) ---
+    fig, ax = plt.subplots(figsize=(10, 6))  # <-- Aquí se hace más alto
 
-    # Mostrar en Streamlit
+    ax.plot(resolved_monthly.index, resolved_monthly.values, marker='o', linewidth=2,
+            label='Resueltas', color=PALETTE["accent"])
+    ax.plot(resolved_monthly.index, trend, linestyle='--', linewidth=1.8,
+            label='Tendencia', color=PALETTE["text"])
+
+    # Etiquetas de datos sobre los puntos
+    for x_val, y_val in zip(resolved_monthly.index, resolved_monthly.values):
+        ax.text(x_val, y_val, f"{int(y_val)}", ha='center', va='bottom', fontsize=8, color=PALETTE["text"])
+
+    # Estilo visual minimalista
+    ax.set_facecolor(PALETTE["bg"])
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.grid(False)
+
+    ax.set_title('📈 Tendencia de llamadas resueltas', fontsize=12, color=PALETTE["text"])
+    ax.set_xlabel('')
+    ax.set_ylabel('')
+    ax.tick_params(axis='both', colors=PALETTE["muted"])
+
+    # Leyenda centrada debajo
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=2, frameon=False)
+
+    plt.tight_layout()
     st.pyplot(fig)
