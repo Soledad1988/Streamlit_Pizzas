@@ -1,7 +1,6 @@
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
 import matplotlib.dates as mdates
 
 # ------------------ Configuración de la página ------------------
