@@ -12,6 +12,74 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ------- Sidebar Title -------
+# ------- Ocultar menú lateral predeterminado -------
+hide_default_sidebar = """
+    <style>
+        /* Oculta la navegación de páginas automática */
+        [data-testid="stSidebarNav"] {
+            display: none !important;
+        }
+
+        /* También oculta el contenedor del título predeterminado */
+        [data-testid="stSidebarNavItems"] {
+            display: none !important;
+        }
+
+        /* Asegura que tu propio menú quede arriba sin espacios vacíos */
+        section[data-testid="stSidebar"] div:nth-child(1) {
+            padding-top: 0 !important;
+        }
+    </style>
+"""
+st.markdown(hide_default_sidebar, unsafe_allow_html=True)
+
+st.sidebar.markdown("### 📞 Centro de llamadas")
+
+# ------- Opciones del menú -------
+menu = ["Llamadas", "Agentes", "Temas"]
+icons = ["📞", "👥", "📄"]
+page_files = {
+    "Llamadas": "llamadas.py",
+    "Agentes": "pages/agentes.py",
+    "Temas": "pages/temas.py" 
+}
+
+# Guardamos en la sesión la opción seleccionada
+if "selected_page" not in st.session_state:
+    st.session_state.selected_page = menu[0]
+
+# Mostrar el menú visualmente
+for i, item in enumerate(menu):
+    is_active = item == st.session_state.selected_page
+    active_class = "active" if is_active else ""
+    if st.sidebar.button(f"{icons[i]} {item}", key=item):
+        st.session_state.selected_page = item
+        st.switch_page(page_files[item])  # ⬅ Cambio de página real
+
+# ------- CSS para mejorar estilo -------
+st.markdown("""
+    <style>
+    section[data-testid="stSidebar"] {
+        background-color: #F8F9FB;
+    }
+    .active {
+        background-color: #DDE3EC;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+    button[kind="secondary"] {
+        width: 100%;
+        text-align: left;
+        background-color: transparent;
+        border-radius: 10px;
+    }
+    button[kind="secondary"]:hover {
+        background-color: #E9ECEF;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # ------------------ Paleta minimalista ------------------
 PALETTE = {
     "bg": "#FFFFFF",
@@ -71,19 +139,36 @@ card_style = """
     flex-direction:column;
     justify-content:center;
 ">
-    <h3 style="color:#2B2D42; font-size:1.3rem; margin-bottom:8px; font-weight:600;">{}</h3>
-    <h2 style="color:#D6457B; font-size:2rem; font-weight:700; margin:0;">{}</h2>
+    <h3 style="
+        color:#2B2D42; 
+        font-size:1.1rem; 
+        margin-bottom:8px; 
+        font-weight:600;
+        line-height:1.2;
+        word-wrap:break-word;
+        white-space:normal;
+    ">{}</h3>
+    <h2 style="
+        color:#D6457B; 
+        font-size:1.8rem;
+        font-weight:700; 
+        margin:0;
+        line-height:1.1;
+    ">{}</h2>
 </div>
 """
 
 with kcol1:
     st.markdown(card_style.format("🎫 Total Llamadas", f"{total_llamadas:,}"), unsafe_allow_html=True)
+
 with kcol3:
     st.markdown(card_style.format("✅ % Resueltas", f"{pct_resueltas}%"), unsafe_allow_html=True)
+
 with kcol5:
     st.markdown(card_style.format("⚡ Prom. Respuesta (s)", f"{R_porSegundo_resueltas}"), unsafe_allow_html=True)
 
 st.markdown("---")
+
 
 # ------------------ Layout principal: gráfico grande + tabla/datos (sin filtros en medio) ------------------
 col_left, col_right = st.columns([1.5, 1.5], gap="large")  # left más ancho, right más angosto
@@ -121,7 +206,6 @@ with col_left:
 
 # ----- RIGHT: TABLA sin índices, respetando estilo -----
 with col_right:
-    st.subheader("Cantidad de llamadas por día de la semana")
 
     df_temp = df.copy()
     df_temp['DayOfWeek'] = df_temp['Date'].dt.day_name()
